@@ -44,6 +44,23 @@ const BROWSER_HEADERS = {
 };
 
 // ============================================
+// Multiple Proxy List (jekono ekta kaj korbe)
+// ============================================
+const PROXY_LIST = [
+  // Proxy 1: corsproxy.io
+  (url) => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+
+  // Proxy 2: codetabs
+  (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+
+  // Proxy 3: allorigins
+  (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+
+  // Proxy 4: thingproxy
+  (url) => `https://thingproxy.freeboard.io/fetch/${url}`
+];
+
+// ============================================
 // Time Format Function
 // Format: DD.MM.YYYY-HH:MM:SS
 // ============================================
@@ -80,25 +97,53 @@ const lastSavedPeriod = {
 };
 
 // ============================================
+// Ekta proxy try korar function
+// ============================================
+async function tryProxy(proxyFn, targetURL) {
+  const proxyURL = proxyFn(targetURL);
+
+  const response = await axios.get(proxyURL, {
+    headers: BROWSER_HEADERS,
+    timeout: 12000
+  });
+
+  let data = response.data;
+
+  // Jodi string hoy, JSON parse koro
+  if (typeof data === 'string') {
+    data = JSON.parse(data);
+  }
+
+  return data;
+}
+
+// ============================================
 // WinGo API theke data anar function
-// (Proxy diye — 403 bypass korar jonno)
+// (Multiple proxy try korbe — jeta age kaj korbe)
 // ============================================
 async function fetchFromAPI(apiURL) {
   const targetURL = `${apiURL}?ts=${Date.now()}`;
 
-  // Proxy 1: allorigins
-  const proxyURL = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetURL)}`;
+  let lastError = null;
 
-  try {
-    const response = await axios.get(proxyURL, {
-      headers: BROWSER_HEADERS,
-      timeout: 15000
-    });
-    return response.data;
-  } catch (error) {
-    console.log(`Proxy failed: ${error.message}`);
-    throw error;
+  for (let i = 0; i < PROXY_LIST.length; i++) {
+    try {
+      console.log(`Trying proxy ${i + 1}...`);
+      const data = await tryProxy(PROXY_LIST[i], targetURL);
+
+      if (data && data.data && Array.isArray(data.data.list)) {
+        console.log(`Proxy ${i + 1} worked!`);
+        return data;
+      } else {
+        console.log(`Proxy ${i + 1} returned invalid data`);
+      }
+    } catch (err) {
+      console.log(`Proxy ${i + 1} failed: ${err.message}`);
+      lastError = err;
+    }
   }
+
+  throw lastError || new Error('All proxies failed');
 }
 
 // ============================================
@@ -106,17 +151,7 @@ async function fetchFromAPI(apiURL) {
 // ============================================
 async function fetchAndSave(apiURL, collectionName, label) {
   try {
-    let data = await fetchFromAPI(apiURL);
-
-    // Jodi proxy string return kore (kabho kabho hoy)
-    if (typeof data === 'string') {
-      try {
-        data = JSON.parse(data);
-      } catch (e) {
-        console.log(`[${label}] Failed to parse JSON`);
-        return;
-      }
-    }
+    const data = await fetchFromAPI(apiURL);
 
     if (!data || !data.data || !Array.isArray(data.data.list)) {
       console.log(`[${label}] Invalid API response`);
