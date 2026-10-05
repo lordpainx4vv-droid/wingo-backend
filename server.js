@@ -31,6 +31,19 @@ const WINGO_1M_API =
   'https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json';
 
 // ============================================
+// Browser Headers (403 error fix korar jonno)
+// ============================================
+const BROWSER_HEADERS = {
+  'User-Agent':
+    'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+  'Accept': 'application/json, text/plain, */*',
+  'Accept-Language': 'en-US,en;q=0.9',
+  'Referer': 'https://draw.ar-lottery01.com/',
+  'Origin': 'https://draw.ar-lottery01.com',
+  'Cache-Control': 'no-store'
+};
+
+// ============================================
 // Time Format Function
 // Format: DD.MM.YYYY-HH:MM:SS
 // ============================================
@@ -72,7 +85,7 @@ const lastSavedPeriod = {
 async function fetchAndSave(apiURL, collectionName, label) {
   try {
     const response = await axios.get(`${apiURL}?ts=${Date.now()}`, {
-      headers: { 'Cache-Control': 'no-store' },
+      headers: BROWSER_HEADERS,
       timeout: 10000
     });
 
