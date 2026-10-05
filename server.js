@@ -31,7 +31,7 @@ const WINGO_1M_API =
   'https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json';
 
 // ============================================
-// Browser Headers (403 error fix korar jonno)
+// Browser Headers
 // ============================================
 const BROWSER_HEADERS = {
   'User-Agent':
@@ -80,16 +80,43 @@ const lastSavedPeriod = {
 };
 
 // ============================================
+// WinGo API theke data anar function
+// (Proxy diye — 403 bypass korar jonno)
+// ============================================
+async function fetchFromAPI(apiURL) {
+  const targetURL = `${apiURL}?ts=${Date.now()}`;
+
+  // Proxy 1: allorigins
+  const proxyURL = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetURL)}`;
+
+  try {
+    const response = await axios.get(proxyURL, {
+      headers: BROWSER_HEADERS,
+      timeout: 15000
+    });
+    return response.data;
+  } catch (error) {
+    console.log(`Proxy failed: ${error.message}`);
+    throw error;
+  }
+}
+
+// ============================================
 // WinGo API theke data ene Firestore e save
 // ============================================
 async function fetchAndSave(apiURL, collectionName, label) {
   try {
-    const response = await axios.get(`${apiURL}?ts=${Date.now()}`, {
-      headers: BROWSER_HEADERS,
-      timeout: 10000
-    });
+    let data = await fetchFromAPI(apiURL);
 
-    const data = response.data;
+    // Jodi proxy string return kore (kabho kabho hoy)
+    if (typeof data === 'string') {
+      try {
+        data = JSON.parse(data);
+      } catch (e) {
+        console.log(`[${label}] Failed to parse JSON`);
+        return;
+      }
+    }
 
     if (!data || !data.data || !Array.isArray(data.data.list)) {
       console.log(`[${label}] Invalid API response`);
